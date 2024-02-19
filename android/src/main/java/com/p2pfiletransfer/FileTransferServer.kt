@@ -23,6 +23,7 @@ internal object FileTransferServer {
   ) = withContext(Dispatchers.IO) {
     try {
       val server = ServerSocket(8988)
+      server.reuseAddress = true
       Log.i(NAME, "Server: Socket opened")
 
       val client = server.accept()

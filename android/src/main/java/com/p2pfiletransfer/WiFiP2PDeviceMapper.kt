@@ -77,16 +77,11 @@ internal object WiFiP2PDeviceMapper {
         putNull("owner")
       }
 
-      val clients = group.clientList
-      if (clients != null) {
-        putArray("clients", Arguments.createArray().apply {
-          clients.forEach { device ->
-            pushMap(mapDeviceInfoToReactEntity(device))
-          }
-        })
-      } else {
-        putNull("clients")
-      }
+      putArray("clients", Arguments.createArray().apply {
+        group.clientList?.forEach { device ->
+          pushMap(mapDeviceInfoToReactEntity(device))
+        }
+      })
     }
 
   fun mapSendFileBundleToReactEntity(bundle: Bundle): WritableMap = Arguments.createMap().apply {
