@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { useCallback } from 'react';
 
 import {
   type EmitterSubscription,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableHighlight,
@@ -11,14 +11,16 @@ import {
 import {
   cancelConnect,
   connect,
-  createGroup,
   type Device,
+  getConnectionInfo,
   type GroupInfo,
   initialize,
   receiveFile,
   removeGroup,
   sendFileTo,
   startDiscoveringPeers,
+  stopDiscoveringPeers,
+  subscribeOnClientUpdated,
   subscribeOnConnectionInfoUpdates,
   subscribeOnPeersUpdates,
   subscribeOnThisDeviceChanged,
@@ -30,56 +32,48 @@ export default function App() {
   let groupInfoSubscription: EmitterSubscription;
   let peersSubscription: EmitterSubscription;
   let connectionSubscription: EmitterSubscription;
+  let clientsSubscription: EmitterSubscription;
 
-  const [selectedDevice, setSelectedDevice] = React.useState<Device>();
-  const [devices, setDevices] = React.useState<Array<Device>>([]);
-
+  const [selectedPeer, setSelectedPeer] = React.useState<Device>();
+  const [peers, setPeers] = React.useState<Array<Device>>([]);
+  const [clients, setClients] = React.useState<Array<string>>([]);
   const [groupInfo, setGroupInfo] = React.useState<GroupInfo>();
   const [connectionInfo, setConnectionInfo] = React.useState<WifiP2pInfo>();
 
   const handleStop = async () => {
-    const result = await Promise.allSettled([
-      cancelConnect(),
-      startDiscoveringPeers(),
-      removeGroup(),
-    ]);
-
-    result.forEach((status, value, reason) => {
-      console.log('Stop', status, value, reason);
-    });
-
     peersSubscription?.remove();
     groupInfoSubscription?.remove();
     connectionSubscription?.remove();
+    clientsSubscription?.remove();
 
-    setSelectedDevice(undefined);
+    setPeers([]);
+    setClients([]);
+    setSelectedPeer(undefined);
+    setGroupInfo(undefined);
     setConnectionInfo(undefined);
+
+    await Promise.allSettled([
+      cancelConnect(),
+      stopDiscoveringPeers(),
+      removeGroup(),
+    ]);
   };
 
   const handleStart = async () => {
-    try {
-      // await handleStop();
-    } catch (e) {
-      console.error(e);
-    }
-
-    console.log('stopped previous server');
-
     try {
       await initialize();
     } catch (e) {
       console.warn(e);
     }
 
-    console.log('initialized server');
-
     try {
+      console.log('Starting connection');
+
       await startDiscoveringPeers();
-      console.log('discovering peers');
 
       peersSubscription = subscribeOnPeersUpdates((value) => {
         console.log('Peers:', value);
-        setDevices(value.devices);
+        setPeers(value.devices);
       });
       connectionSubscription = subscribeOnConnectionInfoUpdates((value) => {
         console.log('Connection updates: ', value);
@@ -89,40 +83,37 @@ export default function App() {
         console.log('Group info:', value);
         setGroupInfo(value);
       });
+      clientsSubscription = subscribeOnClientUpdated((value) => {
+        console.log('Clients updated:', value);
+        setClients(value.clients);
+      });
     } catch (e) {
       console.error(e);
     }
   };
 
   const handleConnect = async () => {
-    if (!selectedDevice) return;
+    if (!selectedPeer) return;
 
     try {
-      await connect(selectedDevice.deviceAddress);
+      await connect(selectedPeer.deviceAddress);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const handleCreateGroup = async () => {
-    try {
-      await createGroup();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleFileSend = useCallback(async () => {
+  const handleFileSend = async () => {
     try {
       const response = await DocumentPicker.pickSingle({
         type: [types.video],
       });
-      const clients = groupInfo?.clients;
-      const file = response?.uri;
 
-      const address =
-        clients?.[0]?.deviceAddress ??
-        connectionInfo?.groupOwnerAddress?.hostAddress;
+      const connectionInfo = await getConnectionInfo();
+      const address = connectionInfo.isGroupOwner
+        ? clients[0]
+        : connectionInfo?.groupOwnerAddress?.hostAddress;
+
+      const file = response?.uri;
 
       console.log('Sending file', clients, connectionInfo, file, address);
 
@@ -132,7 +123,7 @@ export default function App() {
     } catch (err) {
       console.error(err);
     }
-  }, [groupInfo, connectionInfo]);
+  };
 
   const handleFileReceive = async () => {
     try {
@@ -144,17 +135,17 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.info}>
+      <ScrollView style={styles.info}>
         <Text>Peers: </Text>
-        {devices.map((device) => {
+        {peers.map((peer) => {
           return (
             <TouchableHighlight
-              key={device.deviceAddress}
+              key={peer.deviceAddress}
               style={styles.device}
-              onPress={() => setSelectedDevice(device)}
+              onPress={() => setSelectedPeer(peer)}
             >
-              <Text>
-                {`${device === selectedDevice ? 'Selected:' : ''} ${JSON.stringify(device)}`}
+              <Text style={styles.text}>
+                {`${peer === selectedPeer ? 'Selected:' : ''} ${JSON.stringify(peer)}`}
               </Text>
             </TouchableHighlight>
           );
@@ -163,10 +154,17 @@ export default function App() {
         <Text>Group Info:</Text>
         {groupInfo && (
           <TouchableHighlight style={[styles.device, styles.groupInfo]}>
-            <Text>{JSON.stringify(groupInfo)}</Text>
+            <Text style={styles.text}>{JSON.stringify(groupInfo)}</Text>
           </TouchableHighlight>
         )}
-      </View>
+
+        <Text>Connection Info:</Text>
+        {connectionInfo && (
+          <TouchableHighlight style={[styles.device, styles.connectionInfo]}>
+            <Text style={styles.text}>{JSON.stringify(connectionInfo)}</Text>
+          </TouchableHighlight>
+        )}
+      </ScrollView>
 
       <View style={styles.row}>
         <TouchableHighlight onPress={handleStart} style={styles.button}>
@@ -178,14 +176,10 @@ export default function App() {
         </TouchableHighlight>
       </View>
 
-      {selectedDevice && (
+      {selectedPeer && (
         <View style={styles.row}>
           <TouchableHighlight onPress={handleConnect} style={styles.button}>
             <Text style={styles.text}>Connect</Text>
-          </TouchableHighlight>
-
-          <TouchableHighlight onPress={handleCreateGroup} style={styles.button}>
-            <Text style={styles.text}>Create Group</Text>
           </TouchableHighlight>
         </View>
       )}
@@ -233,6 +227,9 @@ const styles = StyleSheet.create({
   },
   groupInfo: {
     backgroundColor: 'red',
+  },
+  connectionInfo: {
+    backgroundColor: 'black',
   },
   row: {
     flexDirection: 'row',

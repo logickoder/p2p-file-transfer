@@ -13,6 +13,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 
+/**
+ * Request a permission
+ */
 internal suspend fun Activity?.request(
   permission: String,
 ) = suspendCancellableCoroutine { cont ->
@@ -48,6 +51,9 @@ internal suspend fun Activity?.request(
   }
 }
 
+/**
+ * Open the settings of the app
+ */
 fun Context.openSettings() {
   val intent = Intent().apply {
     action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
@@ -56,6 +62,9 @@ fun Context.openSettings() {
   startActivity(intent)
 }
 
+/**
+ * Get the [PermissionAwareActivity] from the context
+ */
 private fun Activity?.getPermissionAwareActivity(): PermissionAwareActivity {
   checkNotNull(this) {
     "Tried to use permissions API while not attached to an " + "Activity."

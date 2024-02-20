@@ -6,6 +6,7 @@ import android.util.Log
 import com.facebook.react.bridge.Callback
 import com.facebook.react.bridge.ReactContext
 import com.p2pfiletransfer.P2pFileTransferModule.Companion.NAME
+import com.p2pfiletransfer.P2pFileTransferModule.Companion.PORT
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -22,7 +23,7 @@ internal object FileTransferServer {
     callback: Callback,
   ) = withContext(Dispatchers.IO) {
     try {
-      val server = ServerSocket(8988)
+      val server = ServerSocket(PORT)
       server.reuseAddress = true
       Log.i(NAME, "Server: Socket opened")
 

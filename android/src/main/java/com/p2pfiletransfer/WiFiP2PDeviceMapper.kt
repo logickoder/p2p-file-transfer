@@ -37,6 +37,14 @@ internal object WiFiP2PDeviceMapper {
       putInt("status", device.status)
     }
 
+  fun mapClientsToReactEntity(clients: List<String>): WritableMap = Arguments.createMap().apply {
+    putArray("clients", Arguments.createArray().apply {
+      clients.forEach { client ->
+        pushString(client)
+      }
+    })
+  }
+
   fun mapWiFiP2PInfoToReactEntity(wifiP2pInformation: WifiP2pInfo): WritableMap =
     Arguments.createMap().apply {
 
@@ -87,10 +95,5 @@ internal object WiFiP2PDeviceMapper {
   fun mapSendFileBundleToReactEntity(bundle: Bundle): WritableMap = Arguments.createMap().apply {
     putDouble("time", bundle.getLong("time").toDouble())
     putString("file", bundle.getString("file"))
-  }
-
-  fun mapSendMessageBundleToReactEntity(bundle: Bundle): WritableMap = Arguments.createMap().apply {
-    putDouble("time", bundle.getLong("time").toDouble())
-    putString("message", bundle.getString("message"))
   }
 }

@@ -5,18 +5,27 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.net.wifi.p2p.WifiP2pManager
+import android.util.Log
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.p2pfiletransfer.P2pFileTransferModule.Companion.NAME
+import com.p2pfiletransfer.P2pFileTransferModule.Companion.PORT
+import com.p2pfiletransfer.P2pFileTransferModule.Companion.TIMEOUT
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 
 internal class WiFiP2PBroadcastReceiver(
   private val manager: WifiP2pManager,
   private val channel: WifiP2pManager.Channel,
   private val reactContext: ReactApplicationContext,
-  private val mapper: WiFiP2PDeviceMapper = WiFiP2PDeviceMapper,
+  private val scope: CoroutineScope,
 ) : BroadcastReceiver() {
+
+  private val mapper: WiFiP2PDeviceMapper get() = WiFiP2PDeviceMapper
+
+  private val clients = mutableSetOf<String>()
 
   @SuppressLint("MissingPermission")
   override fun onReceive(context: Context?, intent: Intent?) {
@@ -56,6 +65,26 @@ internal class WiFiP2PBroadcastReceiver(
   }
 
   private val connectionListener = WifiP2pManager.ConnectionInfoListener { info ->
+    scope.launch {
+      when {
+        info.groupFormed && info.isGroupOwner -> {
+          Log.i(NAME, "Server Test: preparing to receive message")
+          val ipAddress = receiveTestMessage(PORT)
+          if (ipAddress != null) {
+            Log.d(NAME, "Server Test: Got client address - $ipAddress")
+            clients += ipAddress
+
+            val params = mapper.mapClientsToReactEntity(clients.toList())
+            sendEvent("$NAME:CLIENTS_UPDATED", params)
+          }
+        }
+
+        info.groupFormed && !info.isGroupOwner -> {
+          Log.i(NAME, "Server Test: preparing to send message")
+          sendTestMessage(info.groupOwnerAddress.hostAddress!!, PORT, TIMEOUT)
+        }
+      }
+    }
     val params = mapper.mapWiFiP2PInfoToReactEntity(info)
     sendEvent("$NAME:CONNECTION_INFO_UPDATED", params)
   }

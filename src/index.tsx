@@ -23,6 +23,7 @@ const MODULE_NAME = 'P2pFileTransfer';
 const PEERS_UPDATED_ACTION = 'PEERS_UPDATED';
 const CONNECTION_INFO_UPDATED_ACTION = 'CONNECTION_INFO_UPDATED';
 const THIS_DEVICE_CHANGED_ACTION = 'THIS_DEVICE_CHANGED_ACTION';
+const CLIENTS_UPDATED = 'CLIENTS_UPDATED';
 
 const subscribeOnEvent = (event: string, callback: (value: any) => void) => {
   return DeviceEventEmitter.addListener(`${MODULE_NAME}:${event}`, callback);
@@ -33,6 +34,10 @@ export const initialize = () => P2pFileTransfer.init();
 export const subscribeOnThisDeviceChanged = (
   callback: (data: GroupInfo) => void
 ) => subscribeOnEvent(THIS_DEVICE_CHANGED_ACTION, callback);
+
+export const subscribeOnClientUpdated = (
+  callback: (data: ClientsUpdated) => void
+) => subscribeOnEvent(CLIENTS_UPDATED, callback);
 
 export const startDiscoveringPeers = (): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -153,4 +158,8 @@ export interface WifiP2pInfo {
 export interface File {
   time: number;
   file: string;
+}
+
+export interface ClientsUpdated {
+  clients: Array<string>;
 }

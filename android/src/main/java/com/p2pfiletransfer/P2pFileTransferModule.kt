@@ -12,9 +12,10 @@ import android.net.wifi.WpsInfo
 import android.net.wifi.p2p.WifiP2pConfig
 import android.net.wifi.p2p.WifiP2pInfo
 import android.net.wifi.p2p.WifiP2pManager
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest
 import android.os.Build
 import android.os.Looper.getMainLooper
-import android.provider.Settings
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.location.LocationManagerCompat
@@ -40,8 +41,14 @@ class P2pFileTransferModule(
   private val mapper = WiFiP2PDeviceMapper
 
   private val scope = MainScope()
+  private val services = mutableMapOf<String, String>()
 
   override fun getName() = NAME
+
+  override fun initialize() {
+    super.initialize()
+//    reactApplicationContext.registerComponentCallbacks()
+  }
 
   override fun onConnectionInfoAvailable(p0: WifiP2pInfo?) {
     wifiP2pInfo = p0
@@ -52,7 +59,6 @@ class P2pFileTransferModule(
     manager?.requestConnectionInfo(
       channel
     ) { wifiP2pInformation ->
-      Log.i(NAME, wifiP2pInformation.toString())
       wifiP2pInfo = wifiP2pInformation
       promise.resolve(mapper.mapWiFiP2PInfoToReactEntity(wifiP2pInformation))
     }
@@ -163,7 +169,7 @@ class P2pFileTransferModule(
               manager!!,
               channel!!,
               reactApplicationContext,
-              mapper
+              scope
             )
             activity.registerReceiver(broadcastReceiver, intentFilter)
           }
@@ -318,7 +324,7 @@ class P2pFileTransferModule(
       val (resultCode, resultData) = FileTransferWorker.start(
         Uri.parse(uri),
         address,
-        port = "8988",
+        port = PORT.toString(),
         context = reactApplicationContext
       )
       if (resultCode == 0) { // successful transfer
@@ -357,5 +363,7 @@ class P2pFileTransferModule(
 
   companion object {
     const val NAME = "P2pFileTransfer"
+    const val PORT = 8988
+    const val TIMEOUT = 5000
   }
 }
