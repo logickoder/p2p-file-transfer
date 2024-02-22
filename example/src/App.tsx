@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  ToastAndroid,
   TouchableHighlight,
   View,
 } from 'react-native';
@@ -27,6 +28,7 @@ import {
   type WifiP2pInfo,
 } from 'p2p-file-transfer';
 import DocumentPicker, { types } from 'react-native-document-picker';
+import * as RNFS from 'react-native-fs';
 
 export default function App() {
   let groupInfoSubscription: EmitterSubscription;
@@ -39,6 +41,11 @@ export default function App() {
   const [clients, setClients] = React.useState<Array<string>>([]);
   const [groupInfo, setGroupInfo] = React.useState<GroupInfo>();
   const [connectionInfo, setConnectionInfo] = React.useState<WifiP2pInfo>();
+
+  const showError = (error: any) => {
+    console.log(error);
+    ToastAndroid.show(JSON.stringify(error), ToastAndroid.SHORT);
+  };
 
   const handleStop = async () => {
     peersSubscription?.remove();
@@ -63,7 +70,7 @@ export default function App() {
     try {
       await initialize();
     } catch (e) {
-      console.warn(e);
+      showError(e);
     }
 
     try {
@@ -88,7 +95,7 @@ export default function App() {
         setClients(value.clients);
       });
     } catch (e) {
-      console.error(e);
+      showError(e);
     }
   };
 
@@ -98,7 +105,7 @@ export default function App() {
     try {
       await connect(selectedPeer.deviceAddress);
     } catch (error) {
-      console.error(error);
+      showError(error);
     }
   };
 
@@ -121,15 +128,16 @@ export default function App() {
         await sendFileTo(file, address);
       }
     } catch (err) {
-      console.error(err);
+      showError(err);
     }
   };
 
   const handleFileReceive = async () => {
     try {
-      await receiveFile();
+      const folder = `${RNFS.ExternalDirectoryPath}/.spredHiddenFolder`;
+      await receiveFile(folder);
     } catch (err) {
-      console.error(err);
+      showError(err);
     }
   };
 

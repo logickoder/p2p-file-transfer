@@ -18,6 +18,8 @@ import java.util.UUID
 internal object FileTransferServer {
 
   suspend fun start(
+    destination: String,
+    name: String?,
     scanToGallery: Boolean,
     context: ReactContext,
     callback: Callback,
@@ -32,8 +34,8 @@ internal object FileTransferServer {
 
       val inputStream = client.getInputStream()
 
-      val directory = File(context.externalCacheDir, "videos")
-      val file = File(directory, "${UUID.randomUUID()}.mp4")
+      val directory = File(destination)
+      val file = File(directory, name ?: "${UUID.randomUUID()}.mp4")
 
       if (!directory.exists()) {
         directory.mkdirs()
@@ -46,7 +48,7 @@ internal object FileTransferServer {
       server.close()
       withContext(Dispatchers.Main) {
         Log.i(NAME, "File copied - ${file.absolutePath}")
-        callback.invoke(file.absolutePath)
+        callback.invoke(null, file.absolutePath)
         if (scanToGallery) {
           MediaScannerConnection.scanFile(
             context, arrayOf(File(file.absolutePath).toString()), null, null
@@ -55,6 +57,7 @@ internal object FileTransferServer {
       }
     } catch (e: IOException) {
       Log.e(NAME, e.message, e)
+      callback.invoke(e.message, null)
     }
   }
 }

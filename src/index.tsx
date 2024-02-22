@@ -29,16 +29,32 @@ const subscribeOnEvent = (event: string, callback: (value: any) => void) => {
   return DeviceEventEmitter.addListener(`${MODULE_NAME}:${event}`, callback);
 };
 
+/**
+ * Initialize the module
+ */
 export const initialize = () => P2pFileTransfer.init();
 
+/**
+ * Subscribe to this device changes
+ *
+ * @param callback the callback to be called when the device changes
+ */
 export const subscribeOnThisDeviceChanged = (
   callback: (data: GroupInfo) => void
 ) => subscribeOnEvent(THIS_DEVICE_CHANGED_ACTION, callback);
 
+/**
+ * Subscribe to clients updates
+ *
+ * @param callback the callback to be called when the clients are updated
+ */
 export const subscribeOnClientUpdated = (
   callback: (data: ClientsUpdated) => void
 ) => subscribeOnEvent(CLIENTS_UPDATED, callback);
 
+/**
+ * Start discovering peers
+ */
 export const startDiscoveringPeers = (): Promise<string> =>
   new Promise((resolve, reject) => {
     P2pFileTransfer.discoverPeers((reasonCode?: number, message?: string) => {
@@ -48,13 +64,24 @@ export const startDiscoveringPeers = (): Promise<string> =>
     });
   });
 
+/**
+ * Subscribe to peers updates
+ *
+ * @param callback the callback to be called when the peers are updated
+ */
 export const subscribeOnPeersUpdates = (
   callback: (data: { devices: Device[] }) => void
 ) => subscribeOnEvent(PEERS_UPDATED_ACTION, callback);
 
+/**
+ * Get the list of available peers
+ */
 export const getAvailablePeers = (): Promise<{ devices: Device[] }> =>
   P2pFileTransfer.getAvailablePeersList();
 
+/**
+ * Stop discovering peers
+ */
 export const stopDiscoveringPeers = (): Promise<void> =>
   new Promise((resolve, reject) => {
     P2pFileTransfer.stopPeerDiscovery((reasonCode?: number) => {
@@ -64,9 +91,19 @@ export const stopDiscoveringPeers = (): Promise<void> =>
     });
   });
 
+/**
+ * Connect to a device with the given address
+ *
+ * @param deviceAddress the address of the device
+ */
 export const connect = (deviceAddress: string) =>
   connectWithConfig({ deviceAddress });
 
+/**
+ * Connect to a device with the given config
+ *
+ * @param config the connection config
+ */
 export const connectWithConfig = (config: ConnectionArgs): Promise<void> =>
   new Promise((resolve, reject) => {
     P2pFileTransfer.connectWithConfig(config, (status: number) => {
@@ -74,13 +111,23 @@ export const connectWithConfig = (config: ConnectionArgs): Promise<void> =>
     });
   });
 
+/**
+ * Subscribe to connection info updates
+ * @param callback the callback to be called when the connection info is updated
+ */
 export const subscribeOnConnectionInfoUpdates = (
   callback: (value: WifiP2pInfo) => void
 ) => subscribeOnEvent(CONNECTION_INFO_UPDATED_ACTION, callback);
 
+/**
+ * Retrieve the connection info
+ */
 export const getConnectionInfo = (): Promise<WifiP2pInfo> =>
   P2pFileTransfer.getConnectionInfo();
 
+/**
+ * Cancel any ongoing connection
+ */
 export const cancelConnect = (): Promise<void> =>
   new Promise((resolve, reject) => {
     P2pFileTransfer.cancelConnect((status: number) => {
@@ -88,6 +135,9 @@ export const cancelConnect = (): Promise<void> =>
     });
   });
 
+/**
+ * Create a group
+ */
 export const createGroup = (): Promise<void> =>
   new Promise((resolve, reject) => {
     P2pFileTransfer.createGroup((reasonCode?: number) => {
@@ -97,9 +147,15 @@ export const createGroup = (): Promise<void> =>
     });
   });
 
+/**
+ * Get the group info
+ */
 export const getGroupInfo = (): Promise<GroupInfo> =>
   P2pFileTransfer.getGroupInfo();
 
+/**
+ * Exit the current group
+ */
 export const removeGroup = (): Promise<void> =>
   new Promise((resolve, reject) => {
     P2pFileTransfer.removeGroup((reasonCode?: number) => {
@@ -109,19 +165,45 @@ export const removeGroup = (): Promise<void> =>
     });
   });
 
+/**
+ * Send a file to the group owner
+ *
+ * @param pathToFile the path to the file
+ */
 export const sendFile = (pathToFile: string): Promise<File> =>
   P2pFileTransfer.sendFile(pathToFile);
 
+/**
+ * Send a file to a specific device
+ *
+ * @param pathToFile the path to the file
+ * @param address the address of the device
+ */
 export const sendFileTo = (
   pathToFile: string,
   address: string
 ): Promise<File> => P2pFileTransfer.sendFileTo(pathToFile, address);
 
-export const receiveFile = (forceToScanGallery = false): Promise<string> =>
-  new Promise((resolve, _) => {
-    P2pFileTransfer.receiveFile(forceToScanGallery, (pathToFile: string) => {
-      resolve(pathToFile);
-    });
+/**
+ *
+ * @param destination The destination directory
+ * @param name The name of the file (optional)
+ * @param forceToScanGallery If true, the file will be scanned by the media scanner
+ */
+export const receiveFile = (
+  destination: string,
+  name: string | null = null,
+  forceToScanGallery = false
+): Promise<string> =>
+  new Promise((resolve, reject) => {
+    P2pFileTransfer.receiveFile(
+      destination,
+      name,
+      forceToScanGallery,
+      (error: string, pathToFile: string) => {
+        error ? reject(error) : resolve(pathToFile);
+      }
+    );
   });
 
 export interface Device {

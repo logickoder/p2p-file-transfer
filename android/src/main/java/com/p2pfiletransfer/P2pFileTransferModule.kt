@@ -337,6 +337,8 @@ class P2pFileTransferModule(
 
   @ReactMethod
   fun receiveFile(
+    destination: String,
+    name: String?,
     forceToScanGallery: Boolean,
     callback: Callback?
   ) {
@@ -350,6 +352,8 @@ class P2pFileTransferModule(
       if (info.groupFormed) {
         scope.launch {
           FileTransferServer.start(
+            destination,
+            name,
             forceToScanGallery,
             reactApplicationContext,
             callback,
