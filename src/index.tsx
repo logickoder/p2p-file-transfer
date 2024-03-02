@@ -20,6 +20,7 @@ const P2pFileTransfer = NativeModules.P2pFileTransfer
 
 const MODULE_NAME = 'P2pFileTransfer';
 // ACTIONS
+const P2P_STATE_CHANGED = 'P2P_STATE_CHANGED';
 const PEERS_UPDATED_ACTION = 'PEERS_UPDATED';
 const CONNECTION_INFO_UPDATED_ACTION = 'CONNECTION_INFO_UPDATED';
 const THIS_DEVICE_CHANGED_ACTION = 'THIS_DEVICE_CHANGED_ACTION';
@@ -30,9 +31,78 @@ const subscribeOnEvent = (event: string, callback: (value: any) => void) => {
 };
 
 /**
+ * Check if permissions have been granted
+ */
+export const checkPermissions = (): Promise<boolean> =>
+  P2pFileTransfer.checkPermissions();
+
+/**
+ * Should location be enabled
+ */
+export const shouldEnableLocation = (): Promise<boolean> =>
+  P2pFileTransfer.shouldEnableLocation();
+
+/**
+ * Checks if location is enabled
+ */
+export const isLocationEnabled = (): Promise<boolean> =>
+  P2pFileTransfer.isLocationEnabled();
+
+/**
+ * Checks if Wi-Fi is enabled
+ */
+export const isWifiEnabled = (): Promise<boolean> =>
+  P2pFileTransfer.isWifiEnabled();
+
+/**
+ * Checks if Wi-Fi hotspot is enabled
+ */
+export const isWifiHotspotEnabled = (): Promise<boolean> =>
+  P2pFileTransfer.isWifiApEnabled();
+
+/**
+ * Request app permissions
+ */
+export const requestPermissions = (): Promise<boolean> =>
+  P2pFileTransfer.requestPermissions();
+
+/**
+ * Open app settings
+ */
+export const openAppSettings = (): Promise<void> =>
+  P2pFileTransfer.openAppSettings();
+
+/**
+ * Open Wi-Fi settings
+ */
+export const openWifiSettings = (): Promise<void> =>
+  P2pFileTransfer.openWifiSettings();
+
+/**
+ * Open Wi-Fi hotspot settings
+ */
+export const openWifiHotspotSettings = (): Promise<void> =>
+  P2pFileTransfer.openWifiApSettings();
+
+/**
+ * Open location settings
+ */
+export const openLocationSettings = (): Promise<void> =>
+  P2pFileTransfer.openLocationSettings();
+
+/**
  * Initialize the module
  */
 export const initialize = () => P2pFileTransfer.init();
+
+/**
+ * Subscribe to P2P state changes
+ *
+ * @param callback the callback to be called when the p2p state changes
+ */
+export const subscribeOnP2pStateChanged = (
+  callback: (data: P2pState) => void
+) => subscribeOnEvent(P2P_STATE_CHANGED, callback);
 
 /**
  * Subscribe to this device changes
@@ -205,6 +275,10 @@ export const receiveFile = (
       }
     );
   });
+
+export interface P2pState {
+  enabled: boolean;
+}
 
 export interface Device {
   deviceAddress: string;

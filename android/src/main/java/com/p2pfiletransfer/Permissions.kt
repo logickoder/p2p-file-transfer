@@ -52,14 +52,22 @@ internal suspend fun Activity?.request(
 }
 
 /**
- * Open the settings of the app
+ * Launch the settings screen
  */
-fun Context.openSettings() {
-  val intent = Intent().apply {
-    action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-    data = Uri.fromParts("package", packageName, null)
+fun Activity?.openSettings(screen: String = Settings.ACTION_APPLICATION_DETAILS_SETTINGS) {
+  try {
+    if (this == null) {
+      throw NullPointerException("Tried to open settings screen while not attached to an Activity.")
+    }
+    val intent = Intent(screen).apply {
+      if (screen == Settings.ACTION_APPLICATION_DETAILS_SETTINGS) {
+        data = Uri.fromParts("package", packageName, null)
+      }
+    }
+    startActivity(intent)
+  } catch (e: Exception) {
+    Log.e(NAME, e.message, e)
   }
-  startActivity(intent)
 }
 
 /**

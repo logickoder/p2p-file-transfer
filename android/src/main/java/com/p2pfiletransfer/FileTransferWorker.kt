@@ -2,8 +2,8 @@ package com.p2pfiletransfer
 
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import android.util.Log
-import androidx.core.os.bundleOf
 import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -117,13 +117,17 @@ internal class FileTransferWorker(
             val error = progress.getString(RESULT_ERROR)
 
             if (error != null) {
-              cont.resume(1 to bundleOf(RESULT_ERROR to error))
+              cont.resume(
+                1 to Bundle().apply {
+                  putString(RESULT_ERROR, error)
+                }
+              )
             } else if (file != null) {
               cont.resume(
-                0 to bundleOf(
-                  RESULT_TIME to time,
-                  RESULT_FILE to file
-                )
+                0 to Bundle().apply {
+                  putString(RESULT_FILE, file)
+                  putLong(RESULT_TIME, time)
+                }
               )
             }
           }
