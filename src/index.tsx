@@ -25,6 +25,8 @@ const PEERS_UPDATED_ACTION = 'PEERS_UPDATED';
 const CONNECTION_INFO_UPDATED_ACTION = 'CONNECTION_INFO_UPDATED';
 const THIS_DEVICE_CHANGED_ACTION = 'THIS_DEVICE_CHANGED_ACTION';
 const CLIENTS_UPDATED = 'CLIENTS_UPDATED';
+const RECEIVE_FILE = 'PROGRESS_FILE_RECEIVE';
+const SEND_FILE = 'PROGRESS_FILE_SEND';
 
 const subscribeOnEvent = (event: string, callback: (value: any) => void) => {
   return DeviceEventEmitter.addListener(`${MODULE_NAME}:${event}`, callback);
@@ -255,26 +257,31 @@ export const sendFileTo = (
 ): Promise<File> => P2pFileTransfer.sendFileTo(pathToFile, address);
 
 /**
+ * Subscribe to file send progress events
+ *
+ * @param callback the callback to be called when the file is being sent
+ */
+export const subscribeOnFileSend = (callback: (data: File) => void) =>
+  subscribeOnEvent(SEND_FILE, callback);
+
+/**
  *
  * @param destination The destination directory
- * @param name The name of the file (optional)
  * @param forceToScanGallery If true, the file will be scanned by the media scanner
  */
 export const receiveFile = (
   destination: string,
-  name: string | null = null,
   forceToScanGallery = false
-): Promise<string> =>
-  new Promise((resolve, reject) => {
-    P2pFileTransfer.receiveFile(
-      destination,
-      name,
-      forceToScanGallery,
-      (error: string, pathToFile: string) => {
-        error ? reject(error) : resolve(pathToFile);
-      }
-    );
-  });
+): Promise<File> =>
+  P2pFileTransfer.receiveFile(destination, forceToScanGallery);
+
+/**
+ * Subscribe to file receive progress events
+ *
+ * @param callback the callback to be called when the file is being received
+ */
+export const subscribeOnFileReceive = (callback: (data: File) => void) =>
+  subscribeOnEvent(RECEIVE_FILE, callback);
 
 export interface P2pState {
   enabled: boolean;
@@ -313,7 +320,8 @@ export interface WifiP2pInfo {
 
 export interface File {
   time: number;
-  file: string;
+  file?: string;
+  progress: number;
 }
 
 export interface ClientsUpdated {

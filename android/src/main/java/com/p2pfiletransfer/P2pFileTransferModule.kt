@@ -20,7 +20,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.location.LocationManagerCompat
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Callback
-import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -28,6 +27,7 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 
@@ -40,7 +40,6 @@ class P2pFileTransferModule(
   private var wifiP2pInfo: WifiP2pInfo? = null
   private var manager: WifiP2pManager? = null
   private var channel: WifiP2pManager.Channel? = null
-  private val mapper = WiFiP2PDeviceMapper
 
   private val scope = MainScope()
 
@@ -148,7 +147,7 @@ class P2pFileTransferModule(
       channel
     ) { info ->
       wifiP2pInfo = info
-      promise.resolve(mapper.mapWiFiP2PInfoToReactEntity(info))
+      promise.resolve(WiFiP2PDeviceMapper.mapWiFiP2PInfoToReactEntity(info))
     }
   }
 
@@ -159,7 +158,7 @@ class P2pFileTransferModule(
       channel
     ) { group ->
       if (group != null) {
-        promise.resolve(mapper.mapWiFiP2PGroupInfoToReactEntity(group))
+        promise.resolve(WiFiP2PDeviceMapper.mapWiFiP2PGroupInfoToReactEntity(group))
       } else {
         promise.resolve(null)
       }
@@ -203,7 +202,7 @@ class P2pFileTransferModule(
     manager?.requestPeers(
       channel
     ) { deviceList ->
-      promise.resolve(mapper.mapDevicesInfoToReactEntity(deviceList))
+      promise.resolve(WiFiP2PDeviceMapper.mapDevicesInfoToReactEntity(deviceList))
     }
   }
 
@@ -294,7 +293,7 @@ class P2pFileTransferModule(
     if (address != null) {
       sendFileTo(uri, address, promise)
     } else {
-      promise.reject(Throwable("CONNECTION_CLOSED"))
+      promise.reject(Throwable("No group owner found"))
     }
   }
 
@@ -302,32 +301,56 @@ class P2pFileTransferModule(
   fun sendFileTo(uri: String, address: String, promise: Promise) {
     // User has picked a file. Transfer it to group owner i.e peer using FileTransferService
     Log.i(NAME, "Sending: $uri")
-    scope.launch {
-      val (resultCode, resultData) = FileTransferWorker.start(
+    var transferJob: Job? = null
+
+    transferJob = scope.launch {
+      FileTransferWorker.start(
         Uri.parse(uri),
         address,
         port = PORT.toString(),
-        context = reactApplicationContext
+        context = reactApplicationContext,
+        onData = { bundle ->
+          val progress = bundle.getFloat(FileTransferWorker.RESULT_PROGRESS)
+          val time = bundle.getLong(FileTransferWorker.RESULT_TIME)
+          val file = bundle.getString(FileTransferWorker.RESULT_FILE)
+          val error = bundle.getString(FileTransferWorker.RESULT_ERROR)
+
+          sendEvent(
+            "PROGRESS_FILE_SEND",
+            WiFiP2PDeviceMapper.mapSendFileBundleToReactEntity(
+              time,
+              file,
+              progress
+            )
+          )
+
+          if (file != null) {
+            promise.resolve(
+              WiFiP2PDeviceMapper.mapSendFileBundleToReactEntity(
+                time,
+                file,
+                progress
+              )
+            )
+          } else if (error != null) {
+            promise.reject(Throwable(error))
+          }
+
+          // cancel the job if the file transfer is complete or failed
+          if (file != null || error != null) {
+            transferJob?.cancel()
+          }
+        }
       )
-      if (resultCode == 0) { // successful transfer
-        promise.resolve(mapper.mapSendFileBundleToReactEntity(resultData))
-      } else { // error
-        promise.reject(resultCode.toString(), resultData.getString("error"))
-      }
     }
   }
 
   @ReactMethod
   fun receiveFile(
     destination: String,
-    name: String?,
     forceToScanGallery: Boolean,
-    callback: Callback?
+    promise: Promise,
   ) {
-    if (callback == null) {
-      return
-    }
-
     manager?.requestConnectionInfo(
       channel
     ) { info ->
@@ -335,14 +358,16 @@ class P2pFileTransferModule(
         scope.launch {
           FileTransferServer.start(
             destination,
-            name,
             forceToScanGallery,
             reactApplicationContext,
-            callback,
+            promise,
+            ::sendEvent,
           )
         }
       } else {
-        Log.i(NAME, "You must be in a group to receive a file")
+        val message = "You must be in a group to receive a file"
+        Log.e(NAME, message)
+        promise.reject(Throwable(message))
       }
     }
   }
@@ -369,12 +394,11 @@ class P2pFileTransferModule(
     channel = manager!!.initialize(activity, getMainLooper(), null)
       ?: throw IllegalStateException("Channel is `null`")
 
-
     broadcastReceiver = WiFiP2PBroadcastReceiver(
       manager!!,
       channel!!,
-      getContext = { reactApplicationContext },
-      getScope = { scope }
+      getScope = { scope },
+      sendEvent = ::sendEvent,
     )
 
     activity.registerReceiver(broadcastReceiver, intentFilter)
@@ -482,6 +506,13 @@ class P2pFileTransferModule(
     } catch (e: Exception) {
       false
     }
+  }
+
+  private fun sendEvent(eventName: String, params: WritableMap?) {
+    Log.i(NAME, "Sending $params to $eventName")
+    reactApplicationContext
+      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+      .emit("$NAME:$eventName", params)
   }
 
   companion object {

@@ -23,6 +23,8 @@ import {
   stopDiscoveringPeers,
   subscribeOnClientUpdated,
   subscribeOnConnectionInfoUpdates,
+  subscribeOnFileReceive,
+  subscribeOnFileSend,
   subscribeOnPeersUpdates,
   subscribeOnThisDeviceChanged,
   type WifiP2pInfo,
@@ -125,7 +127,12 @@ export default function App() {
       console.log('Sending file', clients, connectionInfo, file, address);
 
       if (file && address) {
-        await sendFileTo(file, address);
+        const progress = subscribeOnFileSend((data) => {
+          console.log('File send progress', data);
+        });
+        const data = await sendFileTo(file, address);
+        progress.remove();
+        console.log('File sent', data);
       }
     } catch (err) {
       showError(err);
@@ -135,7 +142,12 @@ export default function App() {
   const handleFileReceive = async () => {
     try {
       const folder = `${RNFS.ExternalDirectoryPath}/.spredHiddenFolder`;
-      await receiveFile(folder);
+      const progress = subscribeOnFileReceive((data) => {
+        console.log('File receive progress', data);
+      });
+      const file = await receiveFile(folder, false);
+      progress.remove();
+      console.log('File received', file);
     } catch (err) {
       showError(err);
     }

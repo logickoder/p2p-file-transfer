@@ -24,7 +24,8 @@ internal suspend fun sendTestMessage(
   var retry = 10
 
   Socket().apply {
-    setReuseAddress(true)
+    reuseAddress = true
+    bind(null)
   }.use { socket ->
     try {
       do {
@@ -54,8 +55,9 @@ internal suspend fun sendTestMessage(
 internal suspend fun receiveTestMessage(
   port: Int,
 ): String? = withContext(Dispatchers.IO) {
-  ServerSocket(port).apply {
+  ServerSocket().apply {
     reuseAddress = true
+    bind(InetSocketAddress(port))
   }.use { serverSocket ->
     try {
       val client = serverSocket.accept()

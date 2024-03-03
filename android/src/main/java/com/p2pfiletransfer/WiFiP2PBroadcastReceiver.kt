@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.wifi.p2p.WifiP2pManager
 import android.net.wifi.p2p.WifiP2pManager.ConnectionInfoListener
 import android.util.Log
+import androidx.annotation.RequiresPermission.Write
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContext
 import com.facebook.react.bridge.WritableMap
@@ -21,8 +22,8 @@ import kotlinx.coroutines.launch
 internal class WiFiP2PBroadcastReceiver(
   private val manager: WifiP2pManager,
   private val channel: WifiP2pManager.Channel,
-  private val getContext: () -> ReactContext,
   private val getScope: () -> CoroutineScope,
+  private val sendEvent: (String, WritableMap) -> Unit,
 ) : BroadcastReceiver() {
   private val clients = mutableSetOf<String>()
 
@@ -34,7 +35,7 @@ internal class WiFiP2PBroadcastReceiver(
         val data = WiFiP2PDeviceMapper.mapWifiP2pStateToReactEntity(
           state == WifiP2pManager.WIFI_P2P_STATE_ENABLED
         )
-        sendEvent("$NAME:P2P_STATE_CHANGED", data)
+        sendEvent("P2P_STATE_CHANGED", data)
       }
 
       WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
@@ -54,44 +55,38 @@ internal class WiFiP2PBroadcastReceiver(
   private val groupInfoListener = WifiP2pManager.GroupInfoListener { group ->
     if (group != null) {
       val params = WiFiP2PDeviceMapper.mapWiFiP2PGroupInfoToReactEntity(group)
-      sendEvent("$NAME:THIS_DEVICE_CHANGED_ACTION", params)
+      sendEvent("THIS_DEVICE_CHANGED_ACTION", params)
     }
   }
 
   private val peerListListener = WifiP2pManager.PeerListListener { deviceList ->
     val params = WiFiP2PDeviceMapper.mapDevicesInfoToReactEntity(deviceList)
-    sendEvent("$NAME:PEERS_UPDATED", params)
+    sendEvent("PEERS_UPDATED", params)
   }
 
-  private val connectionListener = WifiP2pManager.ConnectionInfoListener { info ->
+  private val connectionListener = ConnectionInfoListener { info ->
     getScope().launch {
+      val port = PORT + 1
       when {
         info.groupFormed && info.isGroupOwner -> {
           Log.i(NAME, "Server Test: preparing to receive message")
-          val ipAddress = receiveTestMessage(PORT)
+          val ipAddress = receiveTestMessage(port)
           if (ipAddress != null) {
             Log.d(NAME, "Server Test: Got client address - $ipAddress")
             clients += ipAddress
 
             val params = WiFiP2PDeviceMapper.mapClientsToReactEntity(clients.toList())
-            sendEvent("$NAME:CLIENTS_UPDATED", params)
+            sendEvent("CLIENTS_UPDATED", params)
           }
         }
 
         info.groupFormed && !info.isGroupOwner -> {
           Log.i(NAME, "Server Test: preparing to send message")
-          sendTestMessage(info.groupOwnerAddress.hostAddress!!, PORT, TIMEOUT)
+          sendTestMessage(info.groupOwnerAddress.hostAddress!!, port, TIMEOUT)
         }
       }
     }
     val params = WiFiP2PDeviceMapper.mapWiFiP2PInfoToReactEntity(info)
-    sendEvent("$NAME:CONNECTION_INFO_UPDATED", params)
-  }
-
-  private fun sendEvent(eventName: String, params: WritableMap?) {
-    Log.i(NAME, "Sending $params to $eventName")
-    getContext()
-      .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
-      .emit(eventName, params)
+    sendEvent("CONNECTION_INFO_UPDATED", params)
   }
 }

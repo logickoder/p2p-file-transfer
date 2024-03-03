@@ -92,8 +92,17 @@ internal object WiFiP2PDeviceMapper {
       })
     }
 
-  fun mapSendFileBundleToReactEntity(bundle: Bundle): WritableMap = Arguments.createMap().apply {
-    putDouble("time", bundle.getLong("time").toDouble())
-    putString("file", bundle.getString("file"))
+  fun mapSendFileBundleToReactEntity(
+    time: Long,
+    file: String?,
+    progress: Float,
+  ): WritableMap = Arguments.createMap().apply {
+    putDouble("time", time.toDouble())
+    if (file == null) {
+      putNull("file")
+    } else {
+      putString("file", file)
+    }
+    putDouble("progress", progress.toDouble())
   }
 }
